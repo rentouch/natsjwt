@@ -1,8 +1,9 @@
 # NATS JWT
 
 ## Requirements / Installation
-You need to have the `nsc` tool [https://github.com/nats-io/nsc] installed on 
+- You need to have the `nsc` tool [https://github.com/nats-io/nsc] installed on 
 your machine as generating new user-seeds is not implemented in Python yet.
+- `pip install https://github.com/rentouch/natsjwt/releases/download/0.1.0/natsjwt-0.1.0.tar.gz`
 
 
 ## Examples
