@@ -1,4 +1,5 @@
 from __future__ import annotations
+import os
 import json
 import time
 import base64
@@ -39,7 +40,24 @@ def generate_user_seed():
         raise Exception(
             "Was not able to find the NATS 'nsc' binary to generate the user-seed"
         )
-    cmd = ["nsc", "generate", "nkey", "-u"]
+    # Hard-pass the NSC_HOME and NKEYS_PATH to the executable if FORCE_NSC_DIRS is set.
+    # For mysterious reasons (in hardened images), the nsc binary does not pick up the
+    # environment variables. Passing it via arguments works though.
+    FORCE_NSC_DIRS = os.getenv("FORCE_NSC_DIRS")
+    if FORCE_NSC_DIRS:
+        NSC_HOME = os.getenv("NSC_HOME")
+        NKEYS_PATH = os.getenv("NKEYS_PATH")
+        cmd = [
+            "nsc",
+            "generate",
+            f"--data-dir={NSC_HOME}",
+            f"--keystore-dir={NKEYS_PATH}",
+            "nkey",
+            "-u",
+        ]
+        print(f"Picked up FORCE_NSC_DIRS, running cmd: {cmd}")
+    else:
+        cmd = ["nsc", "generate", "nkey", "-u"]
     ret = subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
     # Get the key which starts with the letter S
     for line in ret.split("\n"):

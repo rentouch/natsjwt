@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "natsjwt"
-version = "0.1.0"
+version = "0.1.1"
 description = "NATS JWT (nkeys)"
 authors = ["Rentouch"]
 license = "MIT"
