@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "natsjwt"
-version = "0.1.2"
+version = "0.1.3"
 description = "NATS JWT (nkeys)"
 authors = ["Rentouch"]
 license = "MIT"
@@ -10,7 +10,7 @@ include = [
 
 [tool.poetry.dependencies]
 python = "^3.7"
-nkeys = {git = "https://github.com/nats-io/nkeys.py.git", rev = "299ce82"}
+nkeys = "^0.2.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.5"
