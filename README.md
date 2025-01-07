@@ -1,7 +1,7 @@
 # NATS JWT
 
 ## Requirements / Installation
-- `pip install https://github.com/rentouch/natsjwt/releases/download/0.2.0/natsjwt-0.2.0.tar.gz`
+- `pip install https://github.com/rentouch/natsjwt/releases/download/0.2.3/natsjwt-0.2.3.tar.gz`
 
 
 ## Examples

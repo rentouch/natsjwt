@@ -5,7 +5,6 @@ import base64
 import hashlib
 import nkeys
 import secrets
-import crc32c
 from collections import defaultdict
 
 
@@ -32,27 +31,27 @@ def dict_to_bytestring(dictionary):
 
 
 def generate_user_seed() -> bytes:
+    raw = bytearray()
+
     # Generate 32 random bytes (Ed25519 private key)
-    private_key = secrets.token_bytes(32)
+    raw_seed = secrets.token_bytes(32)
 
-    # Add the "SU" prefix for user seeds
-    prefix = b'\x18'  # "SU" prefix in binary format (as per NATS encoding spec)
-    payload = prefix + private_key
+    # Do bit-magic for "SU", see https://github.com/nats-io/nkeys/blob/main/strkey.go#L89
+    b1 = nkeys.PREFIX_BYTE_SEED | (nkeys.PREFIX_BYTE_USER >> 5)
+    b2 = (nkeys.PREFIX_BYTE_USER & 31) << 3  # 31 = 00011111
+    raw.append(b1)
+    raw.append(b2)
 
-    # Compute CRC checksum (truncate to 16 bits)
-    full_checksum = crc32c.crc32c(payload)
-    truncated_checksum = full_checksum & 0xFFFF  # Keep only the lower 16 bits
-    checksum_bytes = truncated_checksum.to_bytes(2, 'big')
+    # write payload
+    raw.extend(raw_seed)
 
-    # Concatenate payload and checksum
-    seed_with_checksum = payload + checksum_bytes
+    # Calculate checksum and append
+    crc = nkeys.crc16(raw)
+    crc_bytes = crc.to_bytes(2, byteorder='little')
+    raw.extend(crc_bytes)
 
-    # Encode in Base32
-    seed_encoded = base64.b32encode(seed_with_checksum).decode('utf-8').rstrip('=')
-
-    # Format the seed as a NATS user seed
-    nats_user_seed = f"SU{seed_encoded}"
-    return nats_user_seed.encode()
+    # Encode to base32
+    return base64.b32encode(raw).rstrip(b"=")
 
 
 class NJWT:
