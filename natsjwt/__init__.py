@@ -1,12 +1,11 @@
 from __future__ import annotations
-import os
 import json
 import time
 import base64
 import hashlib
 import nkeys
-import subprocess
-from shutil import which
+import secrets
+import crc32c
 from collections import defaultdict
 
 
@@ -32,39 +31,28 @@ def dict_to_bytestring(dictionary):
     return json.dumps(dictionary).encode("utf8")
 
 
-def generate_user_seed():
-    """Returns the NKEY seed for a new user.
-    As the Python implementation is missing, we call directly the go-binary nsc.
-    """
-    if not which("nsc"):
-        raise Exception(
-            "Was not able to find the NATS 'nsc' binary to generate the user-seed"
-        )
-    # Hard-pass the NSC_HOME and NKEYS_PATH to the executable if FORCE_NSC_DIRS is set.
-    # For mysterious reasons (in hardened images), the nsc binary does not pick up the
-    # environment variables. Passing it via arguments works though.
-    FORCE_NSC_DIRS = os.getenv("FORCE_NSC_DIRS")
-    if FORCE_NSC_DIRS:
-        NSC_HOME = os.getenv("NSC_HOME")
-        NKEYS_PATH = os.getenv("NKEYS_PATH")
-        cmd = [
-            "nsc",
-            "generate",
-            f"--data-dir={NSC_HOME}",
-            f"--keystore-dir={NKEYS_PATH}",
-            "nkey",
-            "-u",
-        ]
-        print(f"Picked up FORCE_NSC_DIRS, running cmd: {cmd}")
-    else:
-        cmd = ["nsc", "generate", "nkey", "-u"]
-    ret = subprocess.check_output(cmd, stderr=subprocess.STDOUT, text=True)
-    # Get the key which starts with the letter S
-    for line in ret.split("\n"):
-        if line.startswith("S"):
-            return line.encode("utf8")
-    else:
-        raise Exception(f"Was not able to determine seed from cmd output {ret}")
+def generate_user_seed() -> bytes:
+    # Generate 32 random bytes (Ed25519 private key)
+    private_key = secrets.token_bytes(32)
+
+    # Add the "SU" prefix for user seeds
+    prefix = b'\x18'  # "SU" prefix in binary format (as per NATS encoding spec)
+    payload = prefix + private_key
+
+    # Compute CRC checksum (truncate to 16 bits)
+    full_checksum = crc32c.crc32c(payload)
+    truncated_checksum = full_checksum & 0xFFFF  # Keep only the lower 16 bits
+    checksum_bytes = truncated_checksum.to_bytes(2, 'big')
+
+    # Concatenate payload and checksum
+    seed_with_checksum = payload + checksum_bytes
+
+    # Encode in Base32
+    seed_encoded = base64.b32encode(seed_with_checksum).decode('utf-8').rstrip('=')
+
+    # Format the seed as a NATS user seed
+    nats_user_seed = f"SU{seed_encoded}"
+    return nats_user_seed.encode()
 
 
 class NJWT:
