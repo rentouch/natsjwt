@@ -25,9 +25,10 @@ More can be found in `./examples` directory of this project.
 ## Development of this package
 
 Installation
-1. Make sure that you have poetry installed
-2. `poetry install`
-3. Set dev mode `poetry run pip install -e .`
+1. In case you use pyenv to manage python versions: `poetry env use $(pyenv which python)`
+2. Make sure that you have poetry installed
+3. `poetry install`
+4. Set dev mode `poetry run pip install -e .`
 
 Run the tests  
 `poetry run pytest tests`
