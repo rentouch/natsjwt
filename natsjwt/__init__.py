@@ -70,6 +70,7 @@ class NJWT:
         expiry=None,
         token_key_pair=None,
         sign_seed=None,
+        account_id=None
     ):
         _default_limits = {
             "subs": -1,
@@ -92,6 +93,7 @@ class NJWT:
         self.type = jwt_type
         self.revocations = revocations if revocations else {}
         self.sign_seed = sign_seed
+        self.account_id = account_id
         self.pub_claim = defaultdict(list)
         self.sub_claim = defaultdict(list)
 
@@ -130,6 +132,8 @@ class NJWT:
         }
         if self.expiry:
             claim["exp"] = self.expiry
+        if self.account_id and (self.account_id != self.iss):
+            claim["nats"]["issuer_account"] = self.account_id
         return claim
 
     @property
@@ -178,16 +182,22 @@ class NJWT:
         self.pub_claim["allow"].append(subject)
         self.sub_claim["allow"].append(subject)
 
-    def sign(self, sign_seed=None):
+    def sign(self, sign_seed=None, account_id=None):
         """Returns the complete signed JWT
 
         :param sign_seed: raw byte-string seed to sign the JWT
                           operator-seed for account JWT's
                           and account-seed for user JWT's
+        :param account_id: account ID as string.
+                           This parameter must be specified if
+                           `sign_seed` is the seed of a signing
+                           key of the account, not the account
+                           key
         :return: base64 encoded and signed JWT
         """
         if sign_seed:
             self.sign_seed = sign_seed
+            self.account_id = account_id
         if not self.sign_seed:
             raise Exception("No seed provided to sing the JWT")
 
@@ -228,25 +238,31 @@ class NJWT:
             limits=claim["nats"]["limits"],
             jwt_type="account",
             revocations=claim["nats"].get("revocations"),
+            account_id=claim["nats"].get("issuer_account")
         )
 
     @staticmethod
-    def new_user(name, account_seed) -> NJWT:
+    def new_user(name, signing_seed, account_id=None) -> NJWT:
         """New user NATS JWT
 
         :param name: user name included in the JWT
-        :param account_seed: Seed of the account to which the user belongs to
+        :param signing_seed: Seed to be used to sign the jwt
+        :param account_id: ID of the account the user belongs to.
+                           Must be specified if `signing_seed`
+                           refers to a signing key of the
+                           account
         :return: NJWT object
         """
         # Create new user (priv / pub nkey-pair)
         user_seed = generate_user_seed()
         user_key = nkeys.from_seed(user_seed)
-        account_key = nkeys.from_seed(account_seed)
+        account_key = nkeys.from_seed(signing_seed)
 
         return NJWT(
             iss=account_key.public_key.decode("utf8"),
             name=name,
             token_key_pair=user_key,
-            sign_seed=account_seed,
+            sign_seed=signing_seed,
             jwt_type="user",
+            account_id=account_id
         )
